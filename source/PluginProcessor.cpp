@@ -79,8 +79,7 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     oversampling.reset();
 
     // its nice to have a big ring buffer it means u can play really low frequencies without artifacting
-    double oversampledRate = sampleRate * oversampling.getOversamplingFactor();
-    int maxDelaySamples = static_cast<int>(std::ceil(oversampledRate * 16384));
+    int maxDelaySamples = static_cast<int>(std::ceil(oversampling.getOversamplingFactor() * 16384));
 
     ringBuffer.setSize(getTotalNumOutputChannels(), maxDelaySamples, false, true, false);
     ringBuffer.clear();
@@ -153,14 +152,16 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     double oversampledRate = getSampleRate() * oversampling.getOversamplingFactor();
     double oscPeriodSamples = oversampledRate / oscFreq;
 
-    int requiredRingBufferSamples = (int) std::ceil(oscPeriodSamples * 2);
-    if (ringBuffer.getNumSamples() < requiredRingBufferSamples) {
-        // allocates but should be rare
-        ringBuffer.setSize(getTotalNumOutputChannels(), requiredRingBufferSamples, true);
-    }
     int ringBufferSize = ringBuffer.getNumSamples();
 
     if (ringBufferSize > 0 && ringBuffer.getNumChannels() > 0) {
+        int requiredRingBufferSamples = (int) std::ceil(oscPeriodSamples * 2);
+        if (ringBuffer.getNumSamples() < requiredRingBufferSamples) {
+            // allocates but should be rare
+            ringBuffer.setSize(getTotalNumOutputChannels(), requiredRingBufferSamples, true);
+            ringBufferSize = requiredRingBufferSamples;
+        }
+
         for (size_t channel = 0; channel < oversampledBlock.getNumChannels(); ++channel) {
             auto* channelData = oversampledBlock.getChannelPointer(channel);
             auto* ringData = ringBuffer.getWritePointer(static_cast<int>(channel));
