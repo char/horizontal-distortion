@@ -2,7 +2,7 @@
 #include "Palette.h"
 
 PluginEditor::PluginEditor(PluginProcessor& p)
-    : AudioProcessorEditor(&p), processorRef(p), depthAttachment(std::make_unique<SliderAttachment>(p.parameters, "depth", depthSlider)), syncAttachment(std::make_unique<SliderAttachment>(p.parameters, "sync", syncSlider)) {
+    : AudioProcessorEditor(&p), processorRef(p), depthAttachment(std::make_unique<SliderAttachment>(p.parameters, "depth", depthSlider)), syncAttachment(std::make_unique<SliderAttachment>(p.parameters, "sync", syncSlider)), dryWetAttachment(std::make_unique<SliderAttachment>(p.parameters, "dryWet", dryWetSlider)) {
     juce::ignoreUnused(processorRef);
 
     setLookAndFeel(&customLAF);
@@ -22,6 +22,14 @@ PluginEditor::PluginEditor(PluginProcessor& p)
     syncLabel.setText("Sync", juce::dontSendNotification);
     syncLabel.attachToComponent(&syncSlider, true);
     addAndMakeVisible(syncLabel);
+
+    dryWetSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    dryWetSlider.setRange(0.0, 1.0, 0.0);
+    addAndMakeVisible(dryWetSlider);
+
+    dryWetLabel.setText("Dry/Wet", juce::dontSendNotification);
+    dryWetLabel.attachToComponent(&dryWetSlider, true);
+    addAndMakeVisible(dryWetLabel);
 
     frequencyLabel.setJustificationType(juce::Justification::centred);
     frequencyLabel.setColour(juce::Label::textColourId, Palette::text);
@@ -43,7 +51,7 @@ PluginEditor::PluginEditor(PluginProcessor& p)
         inspector->setVisible(true);
     };
 
-    setSize(700, 550);
+    setSize(700, 600);
 }
 
 PluginEditor::~PluginEditor() {
@@ -64,7 +72,7 @@ void PluginEditor::resized() {
 
     area.removeFromTop(40);
 
-    auto controlArea = area.removeFromTop(100);
+    auto controlArea = area.removeFromTop(150);
 
     auto depthArea = controlArea.removeFromTop(50);
     depthLabel.setBounds(depthArea.removeFromLeft(80));
@@ -73,6 +81,10 @@ void PluginEditor::resized() {
     auto syncArea = controlArea.removeFromTop(50);
     syncLabel.setBounds(syncArea.removeFromLeft(80));
     syncSlider.setBounds(syncArea);
+
+    auto dryWetArea = controlArea.removeFromTop(50);
+    dryWetLabel.setBounds(dryWetArea.removeFromLeft(80));
+    dryWetSlider.setBounds(dryWetArea);
 
     frequencyLabel.setBounds(area.removeFromTop(30));
 

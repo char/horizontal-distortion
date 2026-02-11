@@ -64,7 +64,7 @@ public:
     const TransferFunction& getTF() const { return tf; }
 
 private:
-    static constexpr double WORST_CASE_LFO_FREQ = 32.703; // C1 (MIDI note 24)
+    static constexpr double WORST_CASE_LFO_FREQ = 8.176; // C-1 (MIDI note 0)
 
     juce::UndoManager undoManager;
     TransferFunction tf;
@@ -84,6 +84,7 @@ private:
 
     float currentDepth = 0.0f;
     float currentSync = 1.0f;
+    float currentDryWet = 1.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

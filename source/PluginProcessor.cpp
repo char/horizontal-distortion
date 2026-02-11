@@ -10,7 +10,7 @@ PluginProcessor::PluginProcessor()
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
               ),
-      parameters(*this, nullptr, "Parameters", { std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "depth", 1 }, "Depth", juce::NormalisableRange<float>(0.0f, 1.0f, 0.0f, 0.25f), 1.0f), std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "sync", 2 }, "Sync", juce::NormalisableRange<float>(1.0f, 32.0f, 0.0f), 1.0f) }),
+      parameters(*this, nullptr, "Parameters", { std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "depth", 1 }, "Depth", juce::NormalisableRange<float>(0.0f, 1.0f, 0.0f, 0.25f), 1.0f), std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "sync", 2 }, "Sync", juce::NormalisableRange<float>(1.0f, 32.0f, 0.0f), 1.0f), std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "dryWet", 3 }, "Dry/Wet", juce::NormalisableRange<float>(0.0f, 1.0f, 0.0f), 1.0f) }),
       oversampling(2, 2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false) {
 }
 
@@ -78,9 +78,9 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     oversampling.initProcessing(samplesPerBlock);
     oversampling.reset();
 
+    // its nice to have a big ring buffer it means u can play really low frequencies without artifacting
     double oversampledRate = sampleRate * oversampling.getOversamplingFactor();
-    double worstCasePeriod = 1.0 / WORST_CASE_LFO_FREQ;
-    int maxDelaySamples = static_cast<int>(std::ceil(oversampledRate * worstCasePeriod));
+    int maxDelaySamples = static_cast<int>(std::ceil(oversampledRate * 16384));
 
     ringBuffer.setSize(getTotalNumOutputChannels(), maxDelaySamples, false, true, false);
     ringBuffer.clear();
@@ -91,6 +91,7 @@ void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
 
     currentDepth = parameters.getRawParameterValue("depth")->load();
     currentSync = parameters.getRawParameterValue("sync")->load();
+    currentDryWet = parameters.getRawParameterValue("dryWet")->load();
 }
 
 void PluginProcessor::releaseResources() {
@@ -143,12 +144,20 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     float targetDepth = parameters.getRawParameterValue("depth")->load();
     float targetSync = parameters.getRawParameterValue("sync")->load();
+    float targetDryWet = parameters.getRawParameterValue("dryWet")->load();
 
     float depthIncrement = (targetDepth - currentDepth) / oversampledNumSamples;
     float syncIncrement = (targetSync - currentSync) / oversampledNumSamples;
+    float dryWetIncrement = (targetDryWet - currentDryWet) / oversampledNumSamples;
 
     double oversampledRate = getSampleRate() * oversampling.getOversamplingFactor();
     double oscPeriodSamples = oversampledRate / oscFreq;
+
+    int requiredRingBufferSamples = (int) std::ceil(oscPeriodSamples * 2);
+    if (ringBuffer.getNumSamples() < requiredRingBufferSamples) {
+        // allocates but should be rare
+        ringBuffer.setSize(getTotalNumOutputChannels(), requiredRingBufferSamples, true);
+    }
     int ringBufferSize = ringBuffer.getNumSamples();
 
     if (ringBufferSize > 0 && ringBuffer.getNumChannels() > 0) {
@@ -160,27 +169,33 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             for (int sample = 0; sample < oversampledNumSamples; ++sample) {
                 int64_t localSamples = oscSamples + sample;
 
-                ringData[localWritePos] = channelData[sample];
+                float drySample = channelData[sample];
+                ringData[localWritePos] = drySample;
 
                 auto localPhase = std::fmod(localSamples / oscPeriodSamples, 1.0);
                 if (localPhase < 0.0)
                     localPhase += 1.0;
 
-                // interpolate depth and sync per-sample
+                // interpolate parameters per-sample
                 float depthValue = currentDepth + depthIncrement * sample;
                 float syncValue = currentSync + syncIncrement * sample;
+                float dryWetValue = currentDryWet + dryWetIncrement * sample;
+
                 // TODO: we should be able to calculate a block of transfer values ahead of time
                 double lfoValue = (double) tf.getValue(localPhase, depthValue, syncValue);
 
-                double readPos = localWritePos - std::fmod(localSamples, oscPeriodSamples) + oscPeriodSamples * lfoValue;
+                double readOffset = oscPeriodSamples * lfoValue - std::fmod((double) localSamples, oscPeriodSamples) - oscPeriodSamples;
+                // channelData[sample] = readOffset / ringBufferSize;
+                double readPos = localWritePos + readOffset;
                 int readSampleIdxA = ((int) std::floor(readPos)) % ringBufferSize;
                 int readSampleIdxB = ((int) std::ceil(readPos)) % ringBufferSize;
                 if (readSampleIdxA < 0)
                     readSampleIdxA += ringBufferSize;
                 if (readSampleIdxB < 0)
                     readSampleIdxB += ringBufferSize;
-                auto delayedSample = (float) std::lerp(ringData[readSampleIdxA], ringData[readSampleIdxB], std::fmod(readPos, 1.0));
-                channelData[sample] = delayedSample;
+                // auto delayedSample = (float) std::lerp(ringData[readSampleIdxA], ringData[readSampleIdxB], std::fmod(readPos, 1.0));
+                auto delayedSample = ringData[readSampleIdxA];
+                channelData[sample] = drySample * (1.0f - dryWetValue) + delayedSample * dryWetValue;
 
                 localWritePos++;
                 localWritePos %= ringBufferSize;
@@ -196,6 +211,7 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     currentDepth = targetDepth;
     currentSync = targetSync;
+    currentDryWet = targetDryWet;
 
     oversampling.processSamplesDown(block);
 }

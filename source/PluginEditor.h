@@ -31,12 +31,15 @@ private:
     juce::Label depthLabel;
     juce::Slider syncSlider;
     juce::Label syncLabel;
+    juce::Slider dryWetSlider;
+    juce::Label dryWetLabel;
     juce::Label frequencyLabel;
     std::unique_ptr<CurveShapeEditor> curveShapeEditor;
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     std::unique_ptr<SliderAttachment> depthAttachment;
     std::unique_ptr<SliderAttachment> syncAttachment;
+    std::unique_ptr<SliderAttachment> dryWetAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };
