@@ -33,6 +33,10 @@ private:
     juce::Label syncLabel;
     juce::Slider dryWetSlider;
     juce::Label dryWetLabel;
+    juce::Slider numeratorSlider;
+    juce::Label ratioLabel;
+    juce::Slider denominatorSlider;
+    juce::Label ratioSeparatorLabel;
     juce::Label frequencyLabel;
     std::unique_ptr<CurveShapeEditor> curveShapeEditor;
 
@@ -40,6 +44,8 @@ private:
     std::unique_ptr<SliderAttachment> depthAttachment;
     std::unique_ptr<SliderAttachment> syncAttachment;
     std::unique_ptr<SliderAttachment> dryWetAttachment;
+    std::unique_ptr<SliderAttachment> numeratorAttachment;
+    std::unique_ptr<SliderAttachment> denominatorAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };

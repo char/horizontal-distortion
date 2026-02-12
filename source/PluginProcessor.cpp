@@ -10,7 +10,7 @@ PluginProcessor::PluginProcessor()
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
               ),
-      parameters(*this, nullptr, "Parameters", { std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "depth", 1 }, "Depth", juce::NormalisableRange<float>(0.0f, 1.0f, 0.0f, 0.25f), 1.0f), std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "sync", 2 }, "Sync", juce::NormalisableRange<float>(1.0f, 32.0f, 0.0f), 1.0f), std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "dryWet", 3 }, "Dry/Wet", juce::NormalisableRange<float>(0.0f, 1.0f, 0.0f), 1.0f) }),
+      parameters(*this, nullptr, "Parameters", { std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "depth", 1 }, "Depth", juce::NormalisableRange<float>(0.0f, 1.0f, 0.0f, 0.25f), 1.0f), std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "sync", 2 }, "Sync", juce::NormalisableRange<float>(1.0f, 32.0f, 0.0f), 1.0f), std::make_unique<juce::AudioParameterFloat>(juce::ParameterID { "dryWet", 3 }, "Dry/Wet", juce::NormalisableRange<float>(0.0f, 1.0f, 0.0f), 1.0f), std::make_unique<juce::AudioParameterInt>(juce::ParameterID { "numerator", 4 }, "Numerator", 1, 16, 1), std::make_unique<juce::AudioParameterInt>(juce::ParameterID { "denominator", 5 }, "Denominator", 1, 16, 1) }),
       oversampling(2, 2, juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true, false) {
 }
 
@@ -132,7 +132,12 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (midiToFreq.wasNoteOn()) {
         oscSamples = -midiMessages.getFirstEventTime();
     }
-    oscFreq = midiToFreq.getCurrentFrequency().value_or(1.0);
+    double baseFreq = midiToFreq.getCurrentFrequency().value_or(1.0);
+
+    // Apply numerator/denominator multiplier
+    int numerator = parameters.getRawParameterValue("numerator")->load();
+    int denominator = parameters.getRawParameterValue("denominator")->load();
+    oscFreq = baseFreq * (static_cast<double>(numerator) / static_cast<double>(denominator));
 
     frequency.write() = oscFreq;
     frequency.mark_dirty();
@@ -186,7 +191,6 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 double lfoValue = (double) tf.getValue(localPhase, depthValue, syncValue);
 
                 double readOffset = oscPeriodSamples * lfoValue - std::fmod((double) localSamples, oscPeriodSamples) - oscPeriodSamples;
-                // channelData[sample] = readOffset / ringBufferSize;
                 double readPos = localWritePos + readOffset;
                 int readSampleIdxA = ((int) std::floor(readPos)) % ringBufferSize;
                 int readSampleIdxB = ((int) std::ceil(readPos)) % ringBufferSize;

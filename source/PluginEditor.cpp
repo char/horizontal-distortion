@@ -2,7 +2,7 @@
 #include "Palette.h"
 
 PluginEditor::PluginEditor(PluginProcessor& p)
-    : AudioProcessorEditor(&p), processorRef(p), depthAttachment(std::make_unique<SliderAttachment>(p.parameters, "depth", depthSlider)), syncAttachment(std::make_unique<SliderAttachment>(p.parameters, "sync", syncSlider)), dryWetAttachment(std::make_unique<SliderAttachment>(p.parameters, "dryWet", dryWetSlider)) {
+    : AudioProcessorEditor(&p), processorRef(p), depthAttachment(std::make_unique<SliderAttachment>(p.parameters, "depth", depthSlider)), syncAttachment(std::make_unique<SliderAttachment>(p.parameters, "sync", syncSlider)), dryWetAttachment(std::make_unique<SliderAttachment>(p.parameters, "dryWet", dryWetSlider)), numeratorAttachment(std::make_unique<SliderAttachment>(p.parameters, "numerator", numeratorSlider)), denominatorAttachment(std::make_unique<SliderAttachment>(p.parameters, "denominator", denominatorSlider)) {
     juce::ignoreUnused(processorRef);
 
     setLookAndFeel(&customLAF);
@@ -30,6 +30,23 @@ PluginEditor::PluginEditor(PluginProcessor& p)
     dryWetLabel.setText("Dry/Wet", juce::dontSendNotification);
     dryWetLabel.attachToComponent(&dryWetSlider, true);
     addAndMakeVisible(dryWetLabel);
+
+    numeratorSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    numeratorSlider.setRange(1.0, 16.0, 1.0);
+    addAndMakeVisible(numeratorSlider);
+
+    ratioLabel.setText("Just Interval", juce::dontSendNotification);
+    ratioLabel.attachToComponent(&numeratorSlider, true);
+    addAndMakeVisible(ratioLabel);
+
+    denominatorSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    denominatorSlider.setRange(1.0, 16.0, 1.0);
+    addAndMakeVisible(denominatorSlider);
+
+    ratioSeparatorLabel.setText("/", juce::dontSendNotification);
+    ratioSeparatorLabel.setJustificationType(juce::Justification::centred);
+    ratioSeparatorLabel.setColour(juce::Label::textColourId, Palette::text);
+    addAndMakeVisible(ratioSeparatorLabel);
 
     frequencyLabel.setJustificationType(juce::Justification::centred);
     frequencyLabel.setColour(juce::Label::textColourId, Palette::text);
@@ -72,7 +89,7 @@ void PluginEditor::resized() {
 
     area.removeFromTop(40);
 
-    auto controlArea = area.removeFromTop(150);
+    auto controlArea = area.removeFromTop(200);
 
     auto depthArea = controlArea.removeFromTop(50);
     depthLabel.setBounds(depthArea.removeFromLeft(80));
@@ -85,6 +102,16 @@ void PluginEditor::resized() {
     auto dryWetArea = controlArea.removeFromTop(50);
     dryWetLabel.setBounds(dryWetArea.removeFromLeft(80));
     dryWetSlider.setBounds(dryWetArea);
+
+    auto ratioArea = controlArea.removeFromTop(50);
+    ratioLabel.setBounds(ratioArea.removeFromLeft(80));
+
+    auto slidersArea = ratioArea;
+    int sliderWidth = (slidersArea.getWidth() - 20) / 2;
+
+    numeratorSlider.setBounds(slidersArea.removeFromLeft(sliderWidth));
+    ratioSeparatorLabel.setBounds(slidersArea.removeFromLeft(20));
+    denominatorSlider.setBounds(slidersArea);
 
     frequencyLabel.setBounds(area.removeFromTop(30));
 
