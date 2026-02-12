@@ -198,8 +198,7 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     readSampleIdxA += ringBufferSize;
                 if (readSampleIdxB < 0)
                     readSampleIdxB += ringBufferSize;
-                // auto delayedSample = (float) std::lerp(ringData[readSampleIdxA], ringData[readSampleIdxB], std::fmod(readPos, 1.0));
-                auto delayedSample = ringData[readSampleIdxA];
+                auto delayedSample = (float) std::lerp(ringData[readSampleIdxA], ringData[readSampleIdxB], std::fmod(readPos, 1.0));
                 channelData[sample] = drySample * (1.0f - dryWetValue) + delayedSample * dryWetValue;
 
                 localWritePos++;
