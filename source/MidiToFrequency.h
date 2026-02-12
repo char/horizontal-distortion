@@ -47,11 +47,9 @@ inline void MidiToFrequency::processMidiBuffer(const juce::MidiBuffer& midiMessa
         auto msg = event.getMessage();
 
         if (msg.isNoteOn()) {
-            if (msg.getNoteNumber() != lastMidiNote) {
-                lastMidiNote = msg.getNoteNumber();
-                currentPitchBend = 0.0;
-                noteOnOccurred = true;
-            }
+            lastMidiNote = msg.getNoteNumber();
+            currentPitchBend = 0.0;
+            noteOnOccurred = true;
         } else if (msg.isPitchWheel()) {
             int pitchWheelValue = msg.getPitchWheelValue();
             currentPitchBend = ((pitchWheelValue - 8192) / 8192.0) * pitchBendRange;
